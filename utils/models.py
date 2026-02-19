@@ -36,8 +36,9 @@ class PCAProjector(nn.Module):
     mean_ = torch.tensor(pca.mean_, dtype=torch.float32)             # [input_dim]
     self.register_buffer('components_', components)
     self.register_buffer('mean_', mean_)
+    self.explained_variance_sum = float(pca.explained_variance_ratio_.sum())
     print(f"  PCAProjector fitted: {mean_.shape[0]}D → {self.n_components}D "
-          f"(cumulative explained variance: {pca.explained_variance_ratio_.sum():.3f})")
+          f"(cumulative explained variance: {self.explained_variance_sum:.3f})")
 
   def forward(self, x: torch.Tensor) -> torch.Tensor:
     """x: [B, T, input_dim] → [B, T, n_components]"""
