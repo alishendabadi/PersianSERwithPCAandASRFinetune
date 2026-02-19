@@ -9,7 +9,7 @@ def batch_representation_loader(input_names, layer, path, model_size, data_set):
         except:
                 extract_features(
                     DATA_SET=data_set,
-                    FEATURE_EXTRACTION_MODEL=model_size,
+                    CHECKPOINTS=model_size,
                     REPRESENTATION_LAYER=layer
                                 )
                 rep = torch.load(f"{path}/{input_name.replace('.wav', '')}_{data_set}_{model_size}_layer_{layer}_audio_features.pt")
