@@ -39,7 +39,7 @@ for i, fold in enumerate(folds):
         use_pca=USE_PCA,
         return_attention_weights=False,
         dropout=DROPOUT
-    ).float().to(DEVICE)
+    ).to(DEVICE)
 
     if USE_PCA:
         print(f"  Fitting PCA projector on fold {i+1} training data (no data leak)...")

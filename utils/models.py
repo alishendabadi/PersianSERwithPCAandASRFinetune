@@ -50,7 +50,7 @@ class WhisperFeatureExtractor(nn.Module):
   def __init__(self, pretrained_model, feature_layer="all"):
     super().__init__()
     self.pretrained_model = pretrained_model
-    self.pretrained_model_encoder = WhisperForAudioClassification.from_pretrained(pretrained_model).encoder.float()
+    self.pretrained_model_encoder = WhisperForAudioClassification.from_pretrained(pretrained_model).encoder
     if feature_layer == "all":
       self.feature_layer = list(range(1, len(self.pretrained_model_encoder.layers)+1 ))
     elif type(feature_layer) == str : self.feature_layer = eval(feature_layer)
@@ -88,11 +88,11 @@ class QKVMultiheadPoolingSER(nn.Module):
     if use_pca:
       self.projector = PCAProjector(n_components=d_model)
     else:
-      self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector.float()
+      self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector
     self.projected_normalizer = nn.LayerNorm(d_model)
     self.multihead = MultiHeadQKVAttention(d_k= hidden_dim_each_head, d_model=d_model, n_heads=n_heads, dropout=dropout)
     self.mh_normalizer = nn.LayerNorm(d_model)
-    self.classifier = torch.nn.Linear(in_features=d_model, out_features=number_of_classes).float()
+    self.classifier = torch.nn.Linear(in_features=d_model, out_features=number_of_classes)
 
   def forward(self, x):
     projected_features = self.projector(x)
