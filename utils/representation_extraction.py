@@ -1,28 +1,22 @@
-SHEMO_PATH = "shemo"
-FEATURE_EXTRACTION_MODEL = "whisper_small"
-FEATURES_SAVE_PATH = f"features"
-DEVICE = "cuda"
-
-MODEL_SR = 16000
-
+from constants import *
+from configs import *
 from transformers import WhisperProcessor
 import os
 import librosa
 from tqdm import tqdm
-import pandas as pd
 from utils.models import WhisperFeatureExtractor
 import torch
 
 def extract_features(
         DATA_SET,
-        FEATURE_EXTRACTION_MODEL,
+        CHECKPOINTS,
         REPRESENTATION_LAYER
 ):
     
     FEATURES_SAVE_PATH = f"features/{DATA_SET}"
     
-    model  = WhisperFeatureExtractor(pretrained_model=FEATURE_EXTRACTION_MODEL, feature_layer=REPRESENTATION_LAYER).to(DEVICE)
-    processor = WhisperProcessor.from_pretrained(FEATURE_EXTRACTION_MODEL)
+    model  = WhisperFeatureExtractor(pretrained_model=CHECKPOINTS, feature_layer=REPRESENTATION_LAYER).to(DEVICE)
+    processor = WhisperProcessor.from_pretrained(CHECKPOINTS)
 
     ############SHEMO
     if not os.path.exists(FEATURES_SAVE_PATH):
@@ -37,4 +31,4 @@ def extract_features(
 
             for layer, features in representations.items():
                 features  = features.detach().to("cpu")
-                torch.save(obj=features, f=f"{FEATURES_SAVE_PATH}/{filename.replace('.wav', '')}_{DATA_SET}_{FEATURE_EXTRACTION_MODEL}_{layer.replace('representations', '')}audio_features.pt")
+                torch.save(obj=features, f=f"{FEATURES_SAVE_PATH}/{filename.replace('.wav', '')}_{DATA_SET}_{CHECKPOINTS}_{layer.replace('representations', '')}audio_features.pt")
