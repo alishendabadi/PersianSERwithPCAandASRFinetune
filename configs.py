@@ -3,7 +3,7 @@ import transformers
 from utils.models import *
 
 EPOCHS = 30
-CHECKPOINTS = "whisper_small"
+CHECKPOINTS = "../whisper-turbo-persian-finetuned"
 ARCHITECTURE = QKVMultiheadPoolingSER
 DATA_SET = "shemo"
 LOSS_FUNCTION_CLASS = torch.nn.CrossEntropyLoss
@@ -17,7 +17,7 @@ SCHEDULING_CLASS = transformers.get_cosine_schedule_with_warmup
 LAYER = 8
 REPRESENTATION_CONFIG = {"model": CHECKPOINTS,
                         "layer": LAYER,
-                        "path": f"./features/{DATA_SET}",
+                        "path": f"../features",
                         "data_set": DATA_SET}
 
 

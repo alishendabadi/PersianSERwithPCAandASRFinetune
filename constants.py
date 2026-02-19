@@ -4,7 +4,7 @@ if torch.cuda.is_available(): DEVICE = "cuda"
 else: DEVICE = "cpu"
 
 
-CHECKPOINTS_SAVING_PATH = "trained_models"
+CHECKPOINTS_SAVING_PATH = "../trained_models"
 
 label_to_category = {0: "Happy",
                      1: "Neutral",
@@ -16,5 +16,5 @@ MODEL_NAME = f"{DATA_SET}_{ARCHITECTURE.name}"
 
 MODEL_SR = 16000
 
-FEATURES_SAVE_PATH = f"features"
-SHEMO_PATH = "shemo"
+FEATURES_SAVE_PATH = "../features"
+SHEMO_PATH = "../shemo"
