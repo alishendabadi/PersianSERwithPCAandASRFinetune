@@ -1,5 +1,6 @@
 from configs import *
 import torch
+import os
 if torch.cuda.is_available(): DEVICE = "cuda"
 else: DEVICE = "cpu"
 
@@ -16,5 +17,5 @@ MODEL_NAME = f"{DATA_SET}_{ARCHITECTURE.name}"
 
 MODEL_SR = 16000
 
-FEATURES_SAVE_PATH = f"../features/{CHECKPOINTS}"
+FEATURES_SAVE_PATH = f"../features/{os.path.basename(CHECKPOINTS)}"
 SHEMO_PATH = "../shemo"

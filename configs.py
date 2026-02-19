@@ -1,5 +1,6 @@
 import torch
 import transformers
+import os
 from utils.models import *
 
 EPOCHS = 30
@@ -17,7 +18,7 @@ SCHEDULING_CLASS = transformers.get_cosine_schedule_with_warmup
 LAYER = 8
 REPRESENTATION_CONFIG = {"model": CHECKPOINTS,
                         "layer": LAYER,
-                        "path": f"../features",
+                        "path": f"../features/{os.path.basename(CHECKPOINTS)}",
                         "data_set": DATA_SET}
 
 
