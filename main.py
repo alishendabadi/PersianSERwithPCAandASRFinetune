@@ -2,6 +2,7 @@ from utils.reset_seed import reset_seed
 from utils.training_utils import train
 from utils.testing_utils import test, CrossValidationTestTracker
 from utils.preprocessing import read_shemo_build_loader
+from utils.representation_loading import collect_all_representations
 from utils.cvalidation_utils import print_CV_results
 import torch
 from utils.models import *
@@ -34,9 +35,16 @@ for i, fold in enumerate(folds):
         n_heads=HEAD,
         d_model = MODEL_EMBEDDING_DIM,
         hidden_dim_each_head=HIDDEN,
+        use_pca=USE_PCA,
         return_attention_weights=False,
         dropout=DROPOUT
     ).float().to(DEVICE)
+
+    if USE_PCA:
+        print(f"  Fitting PCA projector on fold {i+1} training data (no data leak)...")
+        train_reps_flat = collect_all_representations(fold["TrainLoader"], REPRESENTATION_CONFIG)
+        model.projector.fit(train_reps_flat)
+        model = model.to(DEVICE)  # move newly registered PCA buffers to device
 
     optimizer = OPTIMIZING_CLASS(params= model.parameters(), lr=LR)
     scheduler = SCHEDULING_CLASS(optimizer= optimizer,

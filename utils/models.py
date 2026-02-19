@@ -7,6 +7,43 @@ from utils.multiheadattention import MultiHeadAttentivePoolinig, MultiHeadQKVAtt
 import warnings
 warnings.filterwarnings("ignore")
 
+class PCAProjector(nn.Module):
+  """
+  Parameter-free dimensionality reduction via PCA.
+  Fitted once per fold on the training split only, stored as frozen buffers.
+  Replaces the Whisper projector to avoid overfitting on small datasets.
+  """
+  def __init__(self, n_components: int):
+    super().__init__()
+    self.n_components = n_components
+    # None buffers are valid in PyTorch; replaced by fit() before use
+    self.register_buffer('components_', None)  # [n_components, input_dim]
+    self.register_buffer('mean_', None)         # [input_dim]
+
+  @property
+  def out_features(self):
+    return self.n_components
+
+  def fit(self, X: torch.Tensor):
+    """
+    Fit PCA on training-fold representations.
+    X: float tensor of shape [N_samples * T, input_dim]
+    """
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=self.n_components)
+    pca.fit(X.cpu().float().numpy())
+    components = torch.tensor(pca.components_, dtype=torch.float32)  # [n_components, input_dim]
+    mean_ = torch.tensor(pca.mean_, dtype=torch.float32)             # [input_dim]
+    self.register_buffer('components_', components)
+    self.register_buffer('mean_', mean_)
+    print(f"  PCAProjector fitted: {mean_.shape[0]}D → {self.n_components}D "
+          f"(cumulative explained variance: {pca.explained_variance_ratio_.sum():.3f})")
+
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    """x: [B, T, input_dim] → [B, T, n_components]"""
+    assert self.components_ is not None, \
+      "PCAProjector has not been fitted yet. Call model.projector.fit(data) before training."
+    return (x - self.mean_) @ self.components_.T
 
 class WhisperFeatureExtractor(nn.Module):
   def __init__(self, pretrained_model, feature_layer="all"):
@@ -33,110 +70,6 @@ class WhisperFeatureExtractor(nn.Module):
       output = {f"layer_{i}_representations": encoder_outputs[i - len(self.pretrained_model_encoder.layers) - 1] for i in self.feature_layer}
     return ModelOutput(**output)
     
-class MeanPoolingSER(nn.Module):
-  name = "MeanPoolingSER"
-  def __init__(self,
-              whisper_size,
-              number_of_classes
-              ):
-    super().__init__()
-    self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector
-    self.projected_normalizer = nn.LayerNorm(self.projector.out_features)
-    self.classifier = torch.nn.Linear(in_features=self.projector.out_features, out_features=number_of_classes)
-
-  def forward(self, x):
-    projected_features = self.projector(x)
-    projected_features = self.projected_normalizer(projected_features)
-    mean = projected_features.mean(dim=1)
-    logits = self.classifier(mean)
-
-    return ModelOutput(logits=logits)
-    
-class WeightedMeanPoolingSER (nn.Module):
-  def __init__(self,
-               feature_extractor_model,
-               number_of_classes,
-               model_embedding_dim=256,
-               return_attention_weights=False):
-    super().__init__()
-    self.return_weights = return_attention_weights
-    self.model_embedding_dim = model_embedding_dim
-    self.feature_extractor = feature_extractor_model
-    self.projector = WhisperForAudioClassification.from_pretrained(feature_extractor_model.pretrained_model).projector
-    self.layernorm = nn.LayerNorm(model_embedding_dim)
-    self.attention_scorer = nn.Linear(in_features=model_embedding_dim, out_features=1, bias=True)
-    self.classifier = torch.nn.Linear(in_features=model_embedding_dim, out_features=number_of_classes)
-
-  def forward(self, x):
-    features = self.feature_extractor(x).acoustic_features
-    projected = self.projector(features)
-    out = F.leaky_relu(projected)
-    out = self.layernorm(out)
-    attention_scores = self.attention_scorer(out)
-    attention_scores = F.relu(attention_scores)
-    attention_weights = F.softmax(attention_scores, dim=1)
-    weighted_output = out*attention_weights
-    weighted_mean_pooled_output = weighted_output.sum(dim=1)
-    logits = self.classifier(weighted_mean_pooled_output)
-
-    if self.return_weights:
-      return ModelOutput(logits=logits, attention_weights=attention_weights)
-    else:
-      return ModelOutput(logits=logits)
-    
-class MultiHeadQnoGradSER(nn.Module):
-  def __init__(self,
-              feature_extractor_model,
-              number_of_classes,
-              heads,
-              mh_hidden_dim_sum,
-              dropout=0.5,
-              model_embedding_dim=256,
-              return_attention_weights=False,
-              skip_connection=True):
-    super().__init__()
-    self.skip_connection = skip_connection
-    self.return_weights = return_attention_weights
-    self.model_embedding = model_embedding_dim
-    self.feature_extractor = feature_extractor_model
-    self.projector = WhisperForAudioClassification.from_pretrained(feature_extractor_model.pretrained_model).projector
-    self.projected_normalizer = nn.LayerNorm(model_embedding_dim)
-    self.query_parameter = nn.Parameter(torch.rand(1, mh_hidden_dim_sum))
-    self.multihead = nn.MultiheadAttention(embed_dim=mh_hidden_dim_sum,
-                                           kdim=model_embedding_dim,
-                                           vdim=model_embedding_dim,
-                                           num_heads=heads,
-                                           batch_first=True,
-                                           dropout=dropout)
-    self.dimentin_fix = nn.Linear(in_features=mh_hidden_dim_sum, out_features=model_embedding_dim)
-    self.mh_normalizer = nn.LayerNorm(model_embedding_dim)
-    self.classifier = torch.nn.Linear(in_features=model_embedding_dim, out_features=number_of_classes)
-
-  def forward(self, x):
-    features = self.feature_extractor(x).acoustic_features
-    projected_features = self.projector(features)
-    projected_features = F.leaky_relu(projected_features)
-    projected_features = self.projected_normalizer(projected_features)
-    stacked_parameter = self.query_parameter.unsqueeze(0).repeat(x.size()[0], 1, 1)
-    if not self.skip_connection:
-      weighted_output, attention_output_weights= self.multihead(query=stacked_parameter , key=projected_features, value=projected_features)
-      fixed_dimention = self.dimentin_fix(weighted_output)
-      fixed_dimention = torch.squeeze(fixed_dimention, dim=1)
-      out = self.mh_normalizer(fixed_dimention)
-    elif self.skip_connection:
-      skip_connection = torch.mean(projected_features, dim=-2)
-      weighted_output, attention_output_weights= self.multihead(query=stacked_parameter , key=projected_features, value=projected_features)
-      fixed_dimention = self.dimentin_fix(weighted_output)
-      fixed_dimention = torch.squeeze(fixed_dimention, dim=1)
-      added = (skip_connection + fixed_dimention)/2
-      out = self.mh_normalizer(added)
-    logits = self.classifier(out)
-
-    if self.return_weights:
-      return ModelOutput(logits=logits, attention_weights=attention_output_weights)
-    else:
-      return ModelOutput(logits=logits)
-    
 class QKVMultiheadPoolingSER(nn.Module):
   name = "QKVAttentivePoolingSER"
   def __init__(self,
@@ -146,11 +79,15 @@ class QKVMultiheadPoolingSER(nn.Module):
               n_heads,
               dropout,
               hidden_dim_each_head,
+              use_pca=False,
               return_attention_weights=False):
     super().__init__()
     self.return_weights = return_attention_weights
     self.d_model = d_model
-    self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector.float()
+    if use_pca:
+      self.projector = PCAProjector(n_components=d_model)
+    else:
+      self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector.float()
     self.projected_normalizer = nn.LayerNorm(d_model)
     self.multihead = MultiHeadQKVAttention(d_k= hidden_dim_each_head, d_model=d_model, n_heads=n_heads, dropout=dropout)
     self.mh_normalizer = nn.LayerNorm(d_model)
@@ -169,7 +106,6 @@ class QKVMultiheadPoolingSER(nn.Module):
     else:
       return ModelOutput(logits=logits)
 
-
 class MultiHeadAttentivePoolingSER(nn.Module):
   name = "MultiHeadAttentivePoolingSER"
   def __init__(self,
@@ -179,11 +115,15 @@ class MultiHeadAttentivePoolingSER(nn.Module):
               n_heads,
               dropout,
               hidden_dim_each_head,
+              use_pca=False,
               return_attention_weights=False):
     super().__init__()
     self.return_weights = return_attention_weights
     self.d_model = d_model
-    self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector
+    if use_pca:
+      self.projector = PCAProjector(n_components=d_model)
+    else:
+      self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector
     self.projected_normalizer = nn.LayerNorm(d_model)
     self.multihead = MultiHeadAttentivePoolinig(d_attention=hidden_dim_each_head, d_model=d_model, n_heads=n_heads, dropout=dropout)
     self.mh_normalizer = nn.LayerNorm(d_model)
