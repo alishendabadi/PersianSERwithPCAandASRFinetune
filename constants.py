@@ -20,5 +20,13 @@ MODEL_SR = 16000
 FEATURES_SAVE_PATH = f"../features/{os.path.basename(CHECKPOINTS)}"
 SHEMO_PATH = "../shemo"
 
-RUN_NAME   = f"{DATA_SET}_{ARCHITECTURE.name}_{os.path.basename(CHECKPOINTS)}_layer{LAYER}_d{MODEL_EMBEDDING_DIM}_head{HEAD}_hidd{HIDDEN}_lr{LR}"
+RUN_NAME   = (
+    f"{DATA_SET}_{ARCHITECTURE.name}_{os.path.basename(CHECKPOINTS)}_"
+    f"layer{LAYER}_d{MODEL_EMBEDDING_DIM}_head{HEAD}_hidd{HIDDEN}_lr{LR}_"
+    f"ep{EPOCHS}_bs{TRAIN_BATCH_SIZE}t{TEST_BATCH_SIZE}_folds{NUMBER_OF_FOLDS}_"
+    f"drop{DROPOUT}_opt{OPTIMIZING_CLASS.__name__}_"
+    f"sched{SCHEDULING_CLASS.__name__}_loss{LOSS_FUNCTION_CLASS.__name__}"
+)
+if USE_PCA:
+    RUN_NAME += "_pca"
 TB_LOG_DIR = f"../runs/{RUN_NAME}"
