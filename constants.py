@@ -16,5 +16,5 @@ MODEL_NAME = f"{DATA_SET}_{ARCHITECTURE.name}"
 
 MODEL_SR = 16000
 
-FEATURES_SAVE_PATH = "../features"
+FEATURES_SAVE_PATH = f"../features/{CHECKPOINTS}"
 SHEMO_PATH = "../shemo"

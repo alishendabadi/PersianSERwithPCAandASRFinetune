@@ -36,7 +36,7 @@ for i, fold in enumerate(folds):
         hidden_dim_each_head=HIDDEN,
         return_attention_weights=False,
         dropout=DROPOUT
-    ).to(DEVICE)
+    ).float().to(DEVICE)
 
     optimizer = OPTIMIZING_CLASS(params= model.parameters(), lr=LR)
     scheduler = SCHEDULING_CLASS(optimizer= optimizer,

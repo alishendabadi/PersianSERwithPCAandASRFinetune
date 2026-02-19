@@ -3,14 +3,14 @@ import transformers
 from utils.models import *
 
 EPOCHS = 30
-CHECKPOINTS = "../whisper-turbo-persian-finetuned"
+CHECKPOINTS = "../whisper-small"
 ARCHITECTURE = QKVMultiheadPoolingSER
 DATA_SET = "shemo"
 LOSS_FUNCTION_CLASS = torch.nn.CrossEntropyLoss
 
 
 OPTIMIZING_CLASS = torch.optim.AdamW
-LR = 1e-3
+LR = 5e-4
 
 SCHEDULING_CLASS = transformers.get_cosine_schedule_with_warmup
 
