@@ -14,7 +14,7 @@ def extract_features(
         FEATURES_SAVE_PATH
 ):
     
-    model  = WhisperFeatureExtractor(pretrained_model=CHECKPOINTS, feature_layer=REPRESENTATION_LAYER).to(DEVICE)
+    model  = WhisperFeatureExtractor(pretrained_model=CHECKPOINTS, feature_layer=REPRESENTATION_LAYER).to(DEVICE).float()
     processor = WhisperProcessor.from_pretrained(CHECKPOINTS)
 
     ############SHEMO
@@ -26,7 +26,7 @@ def extract_features(
             file_path = os.path.join(root, filename)
             audio_data, _ = librosa.load(file_path, sr=MODEL_SR)
             features = processor(audio_data, sampling_rate=MODEL_SR, return_tensors="pt").input_features
-            representations = model(features.to(DEVICE))
+            representations = model(features.to(DEVICE).float())
 
             for layer, features in representations.items():
                 features  = features.detach().to("cpu")
