@@ -13,9 +13,10 @@ class PCAProjector(nn.Module):
   Fitted once per fold on the training split only, stored as frozen buffers.
   Replaces the Whisper projector to avoid overfitting on small datasets.
   """
-  def __init__(self, n_components: int):
+  def __init__(self, n_components: int, dtype: torch.dtype = torch.float32):
     super().__init__()
     self.n_components = n_components
+    self.dtype = dtype
     # None buffers are valid in PyTorch; replaced by fit() before use
     self.register_buffer('components_', None)  # [n_components, input_dim]
     self.register_buffer('mean_', None)         # [input_dim]
@@ -32,8 +33,8 @@ class PCAProjector(nn.Module):
     from sklearn.decomposition import PCA
     pca = PCA(n_components=self.n_components)
     pca.fit(X.cpu().float().numpy())
-    components = torch.tensor(pca.components_, dtype=torch.float32)  # [n_components, input_dim]
-    mean_ = torch.tensor(pca.mean_, dtype=torch.float32)             # [input_dim]
+    components = torch.tensor(pca.components_, dtype=self.dtype)  # [n_components, input_dim]
+    mean_ = torch.tensor(pca.mean_, dtype=self.dtype)             # [input_dim]
     self.register_buffer('components_', components)
     self.register_buffer('mean_', mean_)
     self.explained_variance_sum = float(pca.explained_variance_ratio_.sum())
@@ -81,12 +82,13 @@ class QKVMultiheadPoolingSER(nn.Module):
               dropout,
               hidden_dim_each_head,
               use_pca=False,
-              return_attention_weights=False):
+              return_attention_weights=False,
+              dtype: torch.dtype = torch.float32):
     super().__init__()
     self.return_weights = return_attention_weights
     self.d_model = d_model
     if use_pca:
-      self.projector = PCAProjector(n_components=d_model)
+      self.projector = PCAProjector(n_components=d_model, dtype=dtype)
     else:
       self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector
     self.projected_normalizer = nn.LayerNorm(d_model)
@@ -117,12 +119,13 @@ class MultiHeadAttentivePoolingSER(nn.Module):
               dropout,
               hidden_dim_each_head,
               use_pca=False,
-              return_attention_weights=False):
+              return_attention_weights=False,
+              dtype: torch.dtype = torch.float32):
     super().__init__()
     self.return_weights = return_attention_weights
     self.d_model = d_model
     if use_pca:
-      self.projector = PCAProjector(n_components=d_model)
+      self.projector = PCAProjector(n_components=d_model, dtype=dtype)
     else:
       self.projector = WhisperForAudioClassification.from_pretrained(whisper_size).projector
     self.projected_normalizer = nn.LayerNorm(d_model)

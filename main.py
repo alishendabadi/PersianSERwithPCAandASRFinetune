@@ -38,14 +38,15 @@ for i, fold in enumerate(folds):
         hidden_dim_each_head=HIDDEN,
         use_pca=USE_PCA,
         return_attention_weights=False,
-        dropout=DROPOUT
-    ).to(DEVICE)
+        dropout=DROPOUT,
+        dtype=FLOATING_POINT
+    ).to(device=DEVICE, dtype=FLOATING_POINT)
 
     if USE_PCA:
         print(f"  Fitting PCA projector on fold {i+1} training data (no data leak)...")
         train_reps_flat = collect_all_representations(fold["TrainLoader"], REPRESENTATION_CONFIG)
         model.projector.fit(train_reps_flat)
-        model = model.to(DEVICE)  # move newly registered PCA buffers to device
+        model = model.to(device=DEVICE, dtype=FLOATING_POINT)  # move newly registered PCA buffers to device/dtype
         writer.add_scalar(f"fold_{i+1}/pca_explained_variance",
                           model.projector.explained_variance_sum, i + 1)
 
@@ -69,6 +70,7 @@ for i, fold in enumerate(folds):
                             fold_idx=i)
 
     model.load_state_dict(torch.load(CHECKPOINTS_SAVING_PATH + "/" + model_name))
+    model.to(dtype=FLOATING_POINT)
     test_results = test(model=model,
                         loss_fn=LOSS_FUNCTION_CLASS(),
                         test_loader=fold["TestLoader"],
@@ -95,6 +97,7 @@ writer.add_hparams(
         "use_pca":         USE_PCA,
         "epochs":          EPOCHS,
         "folds":           NUMBER_OF_FOLDS,
+        "floating_point":  _fp_tag,
     },
     metric_dict={
         "hparam/cv_mean_w_accuracy": float(np.mean(tracker.w_accuracy)),

@@ -30,3 +30,8 @@ HEAD = 6
 HIDDEN = 4
 DROPOUT = 0.3
 USE_PCA = True
+
+# Floating-point precision for the model and all input tensors.
+# torch.float32  — full precision (default, compatible everywhere)
+# torch.float16  — half precision (faster on CUDA, lower VRAM; not recommended on CPU)
+FLOATING_POINT = torch.float32

@@ -20,12 +20,14 @@ MODEL_SR = 16000
 FEATURES_SAVE_PATH = f"../features/{os.path.basename(CHECKPOINTS)}"
 SHEMO_PATH = "../shemo"
 
+_fp_tag = "fp16" if FLOATING_POINT == torch.float16 else "fp32"
+
 RUN_NAME   = (
     f"{DATA_SET}_{ARCHITECTURE.name}_{os.path.basename(CHECKPOINTS)}_"
     f"layer{LAYER}_d{MODEL_EMBEDDING_DIM}_head{HEAD}_hidd{HIDDEN}_lr{LR}_"
     f"ep{EPOCHS}_bs{TRAIN_BATCH_SIZE}t{TEST_BATCH_SIZE}_folds{NUMBER_OF_FOLDS}_"
     f"drop{DROPOUT}_opt{OPTIMIZING_CLASS.__name__}_"
-    f"sched{SCHEDULING_CLASS.__name__}_loss{LOSS_FUNCTION_CLASS.__name__}"
+    f"sched{SCHEDULING_CLASS.__name__}_loss{LOSS_FUNCTION_CLASS.__name__}_{_fp_tag}"
 )
 if USE_PCA:
     RUN_NAME += "_pca"
