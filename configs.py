@@ -11,18 +11,18 @@ LOSS_FUNCTION_CLASS = torch.nn.CrossEntropyLoss
 
 
 OPTIMIZING_CLASS = torch.optim.AdamW
-LR = 5e-4
+LR = 1e-3
 
 SCHEDULING_CLASS = transformers.get_cosine_schedule_with_warmup
 
-LAYER = 8
+LAYER = 12
 REPRESENTATION_CONFIG = {"model": CHECKPOINTS,
                         "layer": LAYER,
                         "path": f"../features/{os.path.basename(CHECKPOINTS)}",
                         "data_set": DATA_SET}
 
 
-MODEL_EMBEDDING_DIM = 256
+MODEL_EMBEDDING_DIM = 512
 TRAIN_BATCH_SIZE = 16
 TEST_BATCH_SIZE = 16
 NUMBER_OF_FOLDS = 10

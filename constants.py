@@ -31,4 +31,4 @@ RUN_NAME   = (
 )
 if USE_PCA:
     RUN_NAME += "_pca"
-TB_LOG_DIR = f"../runs/{RUN_NAME}"
+TB_LOG_DIR = f"./runs/{RUN_NAME}"
