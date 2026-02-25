@@ -6,3 +6,5 @@ __pycache__
 
 # Very explicit: ignore in root and all subdirectories
 **/__pycache__/
+
+refs/
