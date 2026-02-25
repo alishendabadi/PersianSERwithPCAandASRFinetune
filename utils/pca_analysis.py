@@ -19,9 +19,9 @@ from tqdm import tqdm
 # Allow imports from the project root regardless of where the script is invoked from
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from constants import FEATURES_SAVE_PATH, FLOATING_POINT  # noqa: E402
-from configs import REPRESENTATION_CONFIG                   # noqa: E402
-from utils.representation_extraction import extract_features  # noqa: E402
+from constants import FEATURES_SAVE_PATH, FLOATING_POINT, SHEMO_PATH  # noqa: E402
+from configs import REPRESENTATION_CONFIG                              # noqa: E402
+from utils.representation_extraction import extract_features           # noqa: E402
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "..", "artifacts")
 
@@ -53,11 +53,24 @@ def _load_all_features(features_path: str, data_set: str, model_size: str, layer
         )
         pt_files = _pt_files(features_path)
 
+    if not pt_files:
+        raise RuntimeError(
+            f"Still no .pt feature files found in '{features_path}' after attempting extraction.\n"
+            f"  • Make sure SHEMO_PATH (currently '{SHEMO_PATH}') exists and contains .wav files.\n"
+            f"  • Check that extract_features() completed without errors above."
+        )
+
     print(f"Loading {len(pt_files)} feature files from '{features_path}' …")
     all_reps = []
     for fname in tqdm(pt_files, desc="Loading features"):
         rep = torch.load(os.path.join(features_path, fname), weights_only=True)  # [1, T, D]
         all_reps.append(rep.cpu().float())
+
+    if not all_reps:
+        raise RuntimeError(
+            f"All .pt files in '{features_path}' failed to load. "
+            "Check that the files are valid PyTorch tensors."
+        )
 
     all_reps = torch.cat(all_reps, dim=0)              # [N, T, D]
     flat = all_reps.view(-1, all_reps.shape[-1])        # [N*T, D]
@@ -111,8 +124,8 @@ def explained_variance_analysis(X: np.ndarray, target_variance: float = 0.95) ->
     plt.tight_layout()
 
     plot_path = os.path.join(ARTIFACTS_DIR,
-                             f"pca_explained_variance_{int(target_variance * 100)}pct.png")
-    fig.savefig(plot_path, dpi=150, bbox_inches="tight")
+                             f"pca_explained_variance_{int(target_variance * 100)}pct.pdf")
+    fig.savefig(plot_path, format="pdf", bbox_inches="tight")
     plt.close(fig)
     print(f"  Plot saved → {plot_path}")
 
@@ -162,8 +175,8 @@ def scree_plot(X: np.ndarray) -> None:
     fig.suptitle("PCA Scree Analysis", fontsize=14)
     plt.tight_layout()
 
-    plot_path = os.path.join(ARTIFACTS_DIR, "pca_scree_plot.png")
-    fig.savefig(plot_path, dpi=150, bbox_inches="tight")
+    plot_path = os.path.join(ARTIFACTS_DIR, "pca_scree_plot.pdf")
+    fig.savefig(plot_path, format="pdf", bbox_inches="tight")
     plt.close(fig)
     print(f"Scree plot saved → {plot_path}")
 
