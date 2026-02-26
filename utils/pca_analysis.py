@@ -138,41 +138,27 @@ def explained_variance_analysis(X: np.ndarray, target_variance: float = 0.95) ->
 
 def scree_plot(X: np.ndarray) -> None:
     """
-    Produce a two-panel scree plot:
-      • Left panel  – individual explained variance per component.
-      • Right panel – cumulative explained variance with 90 / 95 / 99 % markers.
-
-    The figure is saved to the artifacts directory.
+    Produce a cumulative scree plot with 90 / 95 / 99 % threshold markers.
+    Saved as PDF in the artifacts directory.
     """
     pca = _fit_full_pca(X)
     cumulative = np.cumsum(pca.explained_variance_ratio_)
-    n = len(pca.explained_variance_ratio_)
+    n = len(cumulative)
 
     os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-
-    # Left: individual variance (classic scree)
-    axes[0].plot(range(1, n + 1), pca.explained_variance_ratio_, linewidth=1.5)
-    axes[0].set_xlabel("Principal Component")
-    axes[0].set_ylabel("Explained Variance Ratio")
-    axes[0].set_title("Scree Plot (per-component)")
-    axes[0].grid(True, alpha=0.3)
-
-    # Right: cumulative with threshold markers
-    axes[1].plot(range(1, n + 1), cumulative, linewidth=1.5)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(range(1, n + 1), cumulative, linewidth=1.5)
     thresholds = [(0.90, "orange"), (0.95, "red"), (0.99, "purple")]
     for threshold, color in thresholds:
         idx = int(np.argmax(cumulative >= threshold)) + 1
-        axes[1].axhline(y=threshold, color=color, linestyle="--", alpha=0.8,
-                        label=f"{threshold * 100:.0f}%  →  n = {idx}")
-    axes[1].set_xlabel("Number of Components")
-    axes[1].set_ylabel("Cumulative Explained Variance")
-    axes[1].set_title("Scree Plot (cumulative)")
-    axes[1].legend()
-    axes[1].grid(True, alpha=0.3)
-
-    fig.suptitle("PCA Scree Analysis", fontsize=14)
+        ax.axhline(y=threshold, color=color, linestyle="--", alpha=0.8,
+                   label=f"{threshold * 100:.0f}%  →  n = {idx}")
+    ax.set_xlabel("Number of Components")
+    ax.set_ylabel("Cumulative Explained Variance")
+    ax.set_title("PCA Scree Plot (Cumulative Explained Variance)")
+    ax.legend()
+    ax.grid(True, alpha=0.3)
     plt.tight_layout()
 
     plot_path = os.path.join(ARTIFACTS_DIR, "pca_scree_plot.pdf")
