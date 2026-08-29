@@ -11,7 +11,7 @@ class PCAProjector(nn.Module):
   """
   Parameter-free dimensionality reduction via PCA.
   Fitted once per fold on the training split only, stored as frozen buffers.
-  Replaces the Whisper projector to avoid overfitting on small datasets.
+  It replaces the Whisper projector to avoid overfitting on small datasets.
   """
   def __init__(self, n_components: int, dtype: torch.dtype = torch.float32):
     super().__init__()
