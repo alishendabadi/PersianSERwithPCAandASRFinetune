@@ -60,7 +60,7 @@ def read_iemocap(iemocap_excel_path, iemo_audios_folder_path, model_sr=16000, sa
                     if save_file_names == True: file_names.append(filename)
                     else: file_names.append(None)
                     if save_file_path == True: file_paths.append(file_path)
-                    else: file_names.append(None)
+                    else: file_paths.append(None)
                     sessions.append(int(title[4]))
                     genders.append(title[-4])
 
@@ -182,7 +182,7 @@ def read_meld(meld_excel_path, meld_audios_folder_path, model_sr=16000, save_fil
                     if save_file_names == True: file_names.append(filename)
                     else: file_names.append(None)
                     if save_file_path == True: file_paths.append(file_path)
-                    else: file_names.append(None)
+                    else: file_paths.append(None)
                 except:
                     counter += 1
     print(f"errors: {counter}")
@@ -192,6 +192,62 @@ def read_meld(meld_excel_path, meld_audios_folder_path, model_sr=16000, save_fil
        labels = labels,
        file_names = file_names,
        file_paths = file_paths
+    )
+
+def read_aut(aut_audios_folder_path, model_sr=16000, save_file_names=True, save_file_path=True):
+
+    num2emo = {
+        0 : 'Happy',
+        1 : 'Neutral',
+        2 : 'Sad',
+        3 : 'Angery'
+    }
+
+    emo2num = {
+       'H': 0,
+       'N': 1,
+       'S': 2,
+       'A': 3
+    }
+
+    emotions = []
+    labels = []
+    file_names = []
+    file_paths = []
+    genders = []
+    speakers = []
+
+    # File name format: <gender:1><speaker id:2><emotion:1><sentence no.:1>R<rec no.>D<day>.wav
+    # e.g. F04A1R1D01.wav -> the 4th character is the emotion
+    pattern = r'^...(.)'
+
+    for root, folders, files in os.walk(aut_audios_folder_path):
+        for filename in files:
+            if filename.startswith('.') or not filename.lower().endswith('.wav'):
+                continue
+            file_path = os.path.join(root, filename)
+
+            match = re.search(pattern, filename)
+            if match:
+               char = match.group(1)
+               if char in emo2num:
+                  emotion = char
+                  label = emo2num[emotion]
+                  emotions.append(emotion)
+                  labels.append(label)
+                  if save_file_names: file_names.append(filename)
+                  else: file_names.append(None)
+                  if save_file_path: file_paths.append(file_path)
+                  else: file_paths.append(None)
+                  genders.append(filename[0])
+                  speakers.append(filename[:3])
+
+    return AutInfo(
+       labels = labels,
+       file_names = file_names,
+       file_paths = file_paths,
+       genders = genders,
+       speakers = speakers
     )
 
 class MyDataset(Dataset):
@@ -264,4 +320,54 @@ def read_iemo_build_loader(number_of_folds, iemocap_excel_path, iemo_audios_fold
         loaders["TestLoader"] = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False)
         folds.append(loaders)
     print("DataSet Folds for IEMOCAP are Ready!")
+    return folds
+
+autfields = ('labels', 'file_names', 'file_paths', 'genders', 'speakers')
+AutInfo = namedtuple('AutInfo', autfields, defaults=(None,) * len(autfields))
+
+def read_aut_build_loader(number_of_folds, aut_audios_folder_path, train_batch_size, test_batch_size):
+    print("Creating DataSet ...")
+    folds = []
+    raw_dataset = read_aut(aut_audios_folder_path=aut_audios_folder_path)
+
+    # 28 speakers (11 F, 17 M) randomly split into 5 speaker-independent folds
+    sessions = [
+    ['F14', 'F25', 'M01', 'M06', 'M15'],                     #fold1, 296 recordings, 5 speakers
+    ['F10', 'F11', 'M13', 'M18', 'M21'],                     #fold2, 292 recordings, 5 speakers
+    ['F22', 'F26', 'M02', 'M05', 'M20'],                     #fold3, 278 recordings, 5 speakers
+    ['F23', 'F24', 'M03', 'M16', 'M17'],                     #fold4, 283 recordings, 5 speakers
+    ['F04', 'F27', 'F28', 'M07', 'M08', 'M09', 'M12', 'M19'],#fold5, 279 recordings, 8 speakers
+    ]
+
+    # Safety check: every speaker in the data must be in exactly one fold
+    all_listed = [spk for s in sessions for spk in s]
+    assert len(all_listed) == len(set(all_listed)), "A speaker appears in more than one fold!"
+    found = set(raw_dataset.speakers)
+    missing = sorted(found - set(all_listed))
+    unknown = sorted(set(all_listed) - found)
+    if missing or unknown:
+        print(f"WARNING - speakers in data but not in any fold: {missing}")
+        print(f"WARNING - speakers in folds but not found in data: {unknown}")
+
+    file_names_series = pd.Series(raw_dataset.file_names)
+    labels_series = pd.Series(raw_dataset.labels)
+
+    for idx in tqdm(range(number_of_folds)):
+        session = sessions[idx]
+        train_truth = [(i not in session) for i in raw_dataset.speakers]
+        test_truth = [(i in session) for i in raw_dataset.speakers]
+        train_dataset = MyDataset(file_names=file_names_series[train_truth].to_list(),
+                                  labels=labels_series[train_truth].to_list()
+                                  )
+
+        test_dataset = MyDataset(file_names=file_names_series[test_truth].to_list(),
+                                 labels=labels_series[test_truth].to_list()
+                                 )
+
+        loaders = {}
+        loaders["TrainLoader"] = DataLoader(train_dataset, batch_size=train_batch_size, shuffle=True)
+        loaders["TestLoader"] = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False)
+        folds.append(loaders)
+    print("DataSet Folds for Aut are Ready!")
+
     return folds

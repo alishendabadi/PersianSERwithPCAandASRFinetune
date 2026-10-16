@@ -19,6 +19,7 @@ MODEL_SR = 16000
 
 FEATURES_SAVE_PATH = f"../features/{os.path.basename(CHECKPOINTS)}"
 SHEMO_PATH = "../shemo"
+AUT_PATH = "../aut"
 
 _fp_tag = "fp16" if FLOATING_POINT == torch.float16 else "fp32"
 
